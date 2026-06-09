@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IEC Video Playable Builder</title>
+    <style>
+        :root {
+            --ink: #20223a;
+            --muted: #777e96;
+            --line: #e3e7f1;
+            --panel: #ffffff;
+            --app: #f3f4f8;
+            --nav: #1b1d36;
+            --purple: #9b63f3;
+            --purple-soft: #f5efff;
+            --green: #55b987;
+            --green-soft: #ecfaf3;
+            --amber: #f3b461;
+            --danger: #c94d54;
+            --blue: #6277f0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--app);
+            color: var(--ink);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            height: 38px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: #fff;
+            color: var(--ink);
+            font-weight: 750;
+            padding: 0 15px;
+            cursor: pointer;
+            transition: border-color .15s, background .15s, color .15s, transform .15s;
+        }
+
+        button:hover {
+            border-color: #c8cde0;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .topbar {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            background: var(--nav);
+            color: #fff;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            min-width: 0;
+            gap: 14px;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .brand-mark {
+            width: 28px;
+            height: 28px;
+            border: 3px solid #fff;
+            border-radius: 4px;
+            transform: rotate(45deg);
+            flex: 0 0 auto;
+            position: relative;
+        }
+
+        .brand-mark::after {
+            content: "";
+            position: absolute;
+            inset: 6px;
+            border: 3px solid #fff;
+            border-radius: 3px;
+        }
+
+        .file-title {
+            max-width: 42vw;
+            color: #e8e9f7;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .primary {
+            border-color: transparent;
+            background: var(--purple);
+            color: #fff;
+        }
+
+        .primary:hover {
+            border-color: transparent;
+            background: #8d56ea;
+        }
+
+        .secondary {
+            background: transparent;
+            color: #e8e9f7;
+            border-color: #787c9b;
+        }
+
+        .shell {
+            display: grid;
+            grid-template-columns: 318px minmax(440px, 1fr) 376px;
+            height: calc(100vh - 64px);
+            min-height: 720px;
+        }
+
+        aside,
+        .right-panel {
+            background: var(--panel);
+            border-color: var(--line);
+        }
+
+        aside {
+            border-right: 1px solid var(--line);
+            padding: 22px;
+            overflow: auto;
+        }
+
+        .right-panel {
+            border-left: 1px solid var(--line);
+            overflow: auto;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0 0 16px;
+            font-size: 18px;
+            font-weight: 850;
+        }
+
+        .section-title small {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .drop-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .dropzone {
+            min-height: 132px;
+            display: grid;
+            align-content: center;
+            gap: 10px;
+            border: 2px dashed #cfd3e4;
+            border-radius: 8px;
+            background: #fafbff;
+            padding: 16px;
+            text-align: center;
+            transition: border-color .15s, background .15s;
+        }
+
+        .dropzone.is-over {
+            border-color: var(--purple);
+            background: var(--purple-soft);
+        }
+
+        .dropzone.is-ready {
+            border-color: #9dddbd;
+            background: var(--green-soft);
+        }
+
+        .dropzone-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 850;
+        }
+
+        .orientation-dot {
+            width: 18px;
+            height: 18px;
+            border: 2px solid currentColor;
+            border-radius: 5px;
+            flex: 0 0 auto;
+        }
+
+        .orientation-dot.landscape {
+            width: 24px;
+            height: 15px;
+        }
+
+        .choose-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .ghost {
+            background: #fff;
+            color: var(--ink);
+        }
+
+        .tiny {
+            min-width: 38px;
+            width: 38px;
+            padding: 0;
+            text-align: center;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-card {
+            display: grid;
+            gap: 4px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .file-name {
+            color: var(--ink);
+            font-size: 13px;
+            font-weight: 800;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .networks {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+            margin-top: 10px;
+        }
+
+        .network {
+            height: 38px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 0 10px;
+            background: #fff;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--purple);
+            flex: 0 0 auto;
+        }
+
+        .side-group {
+            padding-top: 22px;
+            margin-top: 22px;
+            border-top: 1px solid var(--line);
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+        }
+
+        .metric {
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 10px;
+            background: #fff;
+            min-height: 66px;
+        }
+
+        .metric span {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .metric strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 16px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .stage {
+            position: relative;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            overflow: hidden;
+            background:
+                linear-gradient(90deg, rgba(255,255,255,.65) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(255,255,255,.65) 1px, transparent 1px),
+                #eef0f6;
+            background-size: 28px 28px;
+        }
+
+        .stage-toolbar {
+            height: 62px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 10px 20px 0;
+        }
+
+        .pill {
+            height: 38px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 14px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: #fff;
+            color: var(--ink);
+            font-weight: 800;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            height: 38px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #e9ecf7;
+            padding: 3px;
+            gap: 4px;
+        }
+
+        .toggle button {
+            width: 48px;
+            height: 30px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: #767d96;
+        }
+
+        .toggle button.is-active {
+            background: #fff;
+            color: var(--ink);
+            box-shadow: 0 2px 8px rgba(26, 30, 56, .12);
+        }
+
+        .phone-wrap {
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 26px;
+        }
+
+        .device {
+            position: relative;
+            width: min(390px, calc(100% - 52px), calc((100vh - 196px) * 390 / 844));
+            aspect-ratio: 390 / 844;
+            border: 18px solid #fff;
+            border-radius: 44px;
+            background: #111;
+            box-shadow: 0 22px 70px rgba(26, 30, 56, .2);
+            overflow: hidden;
+            transition: width .2s, aspect-ratio .2s, border-radius .2s;
+        }
+
+        .device.landscape {
+            width: min(720px, calc(100% - 52px), calc((100vh - 196px) * 844 / 390));
+            aspect-ratio: 844 / 390;
+            border-radius: 36px;
+        }
+
+        .device::before {
+            content: "";
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            width: 112px;
+            height: 26px;
+            transform: translateX(-50%);
+            border-radius: 0 0 16px 16px;
+            background: #fff;
+            z-index: 3;
+        }
+
+        .device.landscape::before {
+            top: 50%;
+            left: 10px;
+            width: 26px;
+            height: 112px;
+            transform: translateY(-50%);
+            border-radius: 0 16px 16px 0;
+        }
+
+        .preview-canvas {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            background: var(--preview-bg, #000000);
+        }
+
+        .preview-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            background: #000;
+        }
+
+        .preview-video.is-active {
+            display: block;
+        }
+
+        .empty-preview {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            color: #a4aabd;
+            font-weight: 850;
+            text-align: center;
+            background: #fff;
+            z-index: 2;
+        }
+
+        .preview-badge {
+            position: absolute;
+            left: 14px;
+            bottom: 14px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, .86);
+            color: var(--ink);
+            font-size: 12px;
+            font-weight: 850;
+            padding: 0 10px;
+            z-index: 3;
+            backdrop-filter: blur(8px);
+        }
+
+        .editor-group {
+            padding: 22px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        label {
+            color: #33364f;
+            font-weight: 850;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            height: 44px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 0 12px;
+            color: var(--ink);
+            font-weight: 700;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #b79bfa;
+            box-shadow: 0 0 0 3px rgba(155, 99, 243, .12);
+        }
+
+        .color-field {
+            display: grid;
+            grid-template-columns: 52px 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="color"] {
+            width: 52px;
+            height: 44px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 4px;
+            background: #fff;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 38px;
+            color: var(--ink);
+            font-weight: 800;
+        }
+
+        .check-row input {
+            margin: 0;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .button-row button {
+            flex: 1 1 150px;
+        }
+
+        .status {
+            min-height: 22px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.4;
+            margin-top: 14px;
+        }
+
+        .status.error {
+            color: var(--danger);
+        }
+
+        .status.ok {
+            color: #2f8e65;
+        }
+
+        .status.warn {
+            color: #aa6b16;
+        }
+
+        @media (max-width: 1220px) {
+            .shell {
+                grid-template-columns: 292px minmax(420px, 1fr);
+            }
+
+            .right-panel {
+                grid-column: 1 / -1;
+                border-left: 0;
+                border-top: 1px solid var(--line);
+            }
+        }
+
+        @media (max-width: 760px) {
+            .topbar {
+                height: auto;
+                min-height: 64px;
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 12px;
+                padding: 16px;
+            }
+
+            .file-title {
+                max-width: calc(100vw - 40px);
+            }
+
+            .top-actions {
+                width: 100%;
+            }
+
+            .top-actions button {
+                flex: 1;
+            }
+
+            .shell {
+                display: block;
+                height: auto;
+                min-height: 0;
+            }
+
+            aside,
+            .right-panel {
+                border: 0;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .stage {
+                min-height: 620px;
+            }
+
+            .stage-toolbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 14px 12px 0;
+            }
+
+            .phone-wrap {
+                padding: 18px 12px;
+            }
+
+            .device {
+                width: min(390px, 88vw, calc((100vh - 250px) * 390 / 844));
+            }
+
+            .device.landscape {
+                width: min(520px, 92vw, calc((100vh - 250px) * 844 / 390));
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span>IEC Video Builder</span>
+            <span class="file-title" id="activeTitle">Chưa có video</span>
+        </div>
+        <div class="top-actions">
+            <button class="secondary" id="resetBtn">Reset</button>
+            <button class="primary" id="downloadTopBtn" disabled>Tải xuống</button>
+        </div>
+    </header>
+
+    <main class="shell">
+        <aside>
+            <h2 class="section-title">Creatives <small>2 video</small></h2>
+            <div class="drop-stack">
+                <div class="dropzone" id="portraitDrop">
+                    <div class="dropzone-title">
+                        <span class="orientation-dot" aria-hidden="true"></span>
+                        <span>Video dọc</span>
+                    </div>
+                    <div class="choose-row">
+                        <button id="choosePortraitBtn">Chọn video</button>
+                        <button class="ghost tiny" id="clearPortraitBtn" disabled title="Xoá video dọc">x</button>
+                    </div>
+                    <input class="file-input" type="file" id="portraitInput" accept="video/mp4,video/webm,video/quicktime,video/*">
+                    <div class="file-card" id="portraitInfo">
+                        <div class="file-name">Chưa nạp file</div>
+                        <div>Portrait</div>
+                    </div>
+                </div>
+
+                <div class="dropzone" id="landscapeDrop">
+                    <div class="dropzone-title">
+                        <span class="orientation-dot landscape" aria-hidden="true"></span>
+                        <span>Video ngang</span>
+                    </div>
+                    <div class="choose-row">
+                        <button id="chooseLandscapeBtn">Chọn video</button>
+                        <button class="ghost tiny" id="clearLandscapeBtn" disabled title="Xoá video ngang">x</button>
+                    </div>
+                    <input class="file-input" type="file" id="landscapeInput" accept="video/mp4,video/webm,video/quicktime,video/*">
+                    <div class="file-card" id="landscapeInfo">
+                        <div class="file-name">Chưa nạp file</div>
+                        <div>Landscape</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="side-group">
+                <h2 class="section-title">Ad Networks</h2>
+                <div class="networks" id="networkList"></div>
+            </div>
+
+            <div class="side-group">
+                <h2 class="section-title">Dung lượng</h2>
+                <div class="metric-grid">
+                    <div class="metric">
+                        <span>Video gốc</span>
+                        <strong id="rawSize">0 KB</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Base64</span>
+                        <strong id="base64Size">0 KB</strong>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="stage">
+            <div class="stage-toolbar">
+                <div class="pill" id="previewName">IEC Preview</div>
+                <div class="toggle" aria-label="Preview orientation">
+                    <button id="portraitModeBtn" class="is-active" title="Portrait">▯</button>
+                    <button id="landscapeModeBtn" title="Landscape">▭</button>
+                </div>
+                <button id="playPreviewBtn" disabled>Play</button>
+            </div>
+
+            <div class="phone-wrap">
+                <div class="device" id="device">
+                    <div class="preview-canvas" id="previewCanvas">
+                        <video class="preview-video" id="portraitPreview" muted playsinline loop></video>
+                        <video class="preview-video" id="landscapePreview" muted playsinline loop></video>
+                        <div class="empty-preview" id="emptyPreview">Nạp video để xem preview</div>
+                        <div class="preview-badge" id="orientationBadge">Portrait</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="right-panel">
+            <div class="editor-group">
+                <h2 class="section-title">Playable</h2>
+
+                <div class="field">
+                    <label for="playableName">Playable Name</label>
+                    <input type="text" id="playableName" placeholder="Dream Recipe : Merge Cooking" value="IEC Video Playable">
+                </div>
+
+                <div class="field">
+                    <label for="backgroundColor">Background Color</label>
+                    <div class="color-field">
+                        <input type="color" id="backgroundColor" value="#000000">
+                        <input type="text" id="backgroundText" value="#000000">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="iosLink">iOS Game Link</label>
+                    <input type="text" id="iosLink" placeholder="https://apps.apple.com/app/...">
+                </div>
+
+                <div class="field">
+                    <label for="androidLink">Android Game Link</label>
+                    <input type="text" id="androidLink" placeholder="https://play.google.com/store/apps/details?id=...">
+                </div>
+            </div>
+
+            <div class="editor-group">
+                <h2 class="section-title">Video</h2>
+                <label class="check-row">
+                    <input type="checkbox" id="loopVideo" checked>
+                    Loop video
+                </label>
+                <label class="check-row">
+                    <input type="checkbox" id="fitCover">
+                    Fit cover
+                </label>
+                <label class="check-row">
+                    <input type="checkbox" id="clickAnywhere" checked>
+                    Click toàn màn hình
+                </label>
+            </div>
+
+            <div class="editor-group">
+                <h2 class="section-title">Export</h2>
+                <div class="button-row">
+                    <button id="downloadBtn" class="primary" disabled>Tải HTML/ZIP</button>
+                    <button id="previewExportBtn" disabled>Preview HTML</button>
+                </div>
+                <div class="status" id="status">Sẵn sàng.</div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const NETWORKS = [
+            { id: 'Unity', platform: 'unityads', label: 'Unity' },
+            { id: 'IronSource', platform: 'ironsource', label: 'IronSource' },
+            { id: 'Applovin', platform: 'applovin', label: 'AppLovin' },
+            { id: 'Facebook', platform: 'facebook', label: 'Facebook' },
+            { id: 'Moloco', platform: 'moloco', label: 'Moloco' },
+            { id: 'Google', platform: 'google', label: 'Google' },
+            { id: 'Mintegral', platform: 'mintegral', label: 'Mintegral' },
+            { id: 'Tiktok', platform: 'tiktok', label: 'TikTok' }
+        ];
+
+        const state = {
+            portrait: null,
+            landscape: null,
+            previewMode: 'portrait',
+            exportPreviewUrl: '',
+            settings: {
+                playableName: 'IEC Video Playable',
+                backgroundColor: '#000000',
+                iosLink: '',
+                androidLink: '',
+                loopVideo: true,
+                fitCover: false,
+                clickAnywhere: true
+            }
+        };
+
+        const els = {
+            portraitDrop: document.getElementById('portraitDrop'),
+            landscapeDrop: document.getElementById('landscapeDrop'),
+            portraitInput: document.getElementById('portraitInput'),
+            landscapeInput: document.getElementById('landscapeInput'),
+            choosePortraitBtn: document.getElementById('choosePortraitBtn'),
+            chooseLandscapeBtn: document.getElementById('chooseLandscapeBtn'),
+            clearPortraitBtn: document.getElementById('clearPortraitBtn'),
+            clearLandscapeBtn: document.getElementById('clearLandscapeBtn'),
+            portraitInfo: document.getElementById('portraitInfo'),
+            landscapeInfo: document.getElementById('landscapeInfo'),
+            networkList: document.getElementById('networkList'),
+            rawSize: document.getElementById('rawSize'),
+            base64Size: document.getElementById('base64Size'),
+            activeTitle: document.getElementById('activeTitle'),
+            previewName: document.getElementById('previewName'),
+            portraitModeBtn: document.getElementById('portraitModeBtn'),
+            landscapeModeBtn: document.getElementById('landscapeModeBtn'),
+            playPreviewBtn: document.getElementById('playPreviewBtn'),
+            device: document.getElementById('device'),
+            previewCanvas: document.getElementById('previewCanvas'),
+            portraitPreview: document.getElementById('portraitPreview'),
+            landscapePreview: document.getElementById('landscapePreview'),
+            emptyPreview: document.getElementById('emptyPreview'),
+            orientationBadge: document.getElementById('orientationBadge'),
+            playableName: document.getElementById('playableName'),
+            backgroundColor: document.getElementById('backgroundColor'),
+            backgroundText: document.getElementById('backgroundText'),
+            iosLink: document.getElementById('iosLink'),
+            androidLink: document.getElementById('androidLink'),
+            loopVideo: document.getElementById('loopVideo'),
+            fitCover: document.getElementById('fitCover'),
+            clickAnywhere: document.getElementById('clickAnywhere'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            downloadTopBtn: document.getElementById('downloadTopBtn'),
+            previewExportBtn: document.getElementById('previewExportBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            status: document.getElementById('status')
+        };
+
+        renderNetworks();
+        bindEvents();
+        syncUI();
+
+        function bindEvents() {
+            els.choosePortraitBtn.addEventListener('click', () => els.portraitInput.click());
+            els.chooseLandscapeBtn.addEventListener('click', () => els.landscapeInput.click());
+            els.clearPortraitBtn.addEventListener('click', () => clearVideo('portrait'));
+            els.clearLandscapeBtn.addEventListener('click', () => clearVideo('landscape'));
+
+            els.portraitInput.addEventListener('change', event => {
+                const file = event.target.files[0];
+                if (file) loadVideo('portrait', file);
+                event.target.value = '';
+            });
+
+            els.landscapeInput.addEventListener('change', event => {
+                const file = event.target.files[0];
+                if (file) loadVideo('landscape', file);
+                event.target.value = '';
+            });
+
+            setupDropzone(els.portraitDrop, 'portrait');
+            setupDropzone(els.landscapeDrop, 'landscape');
+
+            els.portraitModeBtn.addEventListener('click', () => setPreviewMode('portrait'));
+            els.landscapeModeBtn.addEventListener('click', () => setPreviewMode('landscape'));
+            els.playPreviewBtn.addEventListener('click', playActivePreview);
+
+            els.playableName.addEventListener('input', () => {
+                state.settings.playableName = els.playableName.value;
+                syncUI();
+            });
+
+            els.backgroundColor.addEventListener('input', () => {
+                state.settings.backgroundColor = normalizeHex(els.backgroundColor.value);
+                els.backgroundText.value = state.settings.backgroundColor;
+                syncUI();
+            });
+
+            els.backgroundText.addEventListener('input', () => {
+                const color = normalizeHex(els.backgroundText.value);
+                state.settings.backgroundColor = color;
+                els.backgroundColor.value = color;
+                syncUI();
+            });
+
+            els.iosLink.addEventListener('input', () => {
+                state.settings.iosLink = els.iosLink.value.trim();
+            });
+
+            els.androidLink.addEventListener('input', () => {
+                state.settings.androidLink = els.androidLink.value.trim();
+            });
+
+            els.loopVideo.addEventListener('change', () => {
+                state.settings.loopVideo = els.loopVideo.checked;
+                syncUI();
+            });
+
+            els.fitCover.addEventListener('change', () => {
+                state.settings.fitCover = els.fitCover.checked;
+                syncUI();
+            });
+
+            els.clickAnywhere.addEventListener('change', () => {
+                state.settings.clickAnywhere = els.clickAnywhere.checked;
+            });
+
+            els.downloadBtn.addEventListener('click', exportSelected);
+            els.downloadTopBtn.addEventListener('click', exportSelected);
+            els.previewExportBtn.addEventListener('click', openExportPreview);
+            els.resetBtn.addEventListener('click', resetAll);
+        }
+
+        function setupDropzone(zone, orientation) {
+            ['dragenter', 'dragover'].forEach(type => {
+                zone.addEventListener(type, event => {
+                    event.preventDefault();
+                    zone.classList.add('is-over');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(type => {
+                zone.addEventListener(type, event => {
+                    event.preventDefault();
+                    zone.classList.remove('is-over');
+                });
+            });
+
+            zone.addEventListener('drop', event => {
+                const file = Array.from(event.dataTransfer.files).find(item => item.type.startsWith('video/'));
+                if (file) loadVideo(orientation, file);
+            });
+        }
+
+        function renderNetworks() {
+            els.networkList.innerHTML = '';
+            NETWORKS.forEach(network => {
+                const label = document.createElement('label');
+                label.className = 'network';
+                label.innerHTML = `<input type="checkbox" class="net-cb" value="${network.id}" checked> ${network.label}`;
+                els.networkList.appendChild(label);
+            });
+        }
+
+        async function loadVideo(orientation, file) {
+            if (!file.type.startsWith('video/')) {
+                setStatus('File không phải video.', 'error');
+                return;
+            }
+
+            setStatus(`Đang đọc ${orientation === 'portrait' ? 'video dọc' : 'video ngang'}...`);
+
+            try {
+                const dataUrl = await readAsDataUrl(file);
+                state[orientation] = {
+                    name: file.name,
+                    type: file.type || inferVideoType(file.name),
+                    size: file.size,
+                    dataUrl
+                };
+                setPreviewMode(orientation);
+                syncUI();
+                const sizeType = dataUrl.length > 5 * 1024 * 1024 ? 'warn' : 'ok';
+                setStatus('Đã nạp video.', sizeType);
+            } catch (error) {
+                console.error(error);
+                setStatus(`Không đọc được video: ${error.message}`, 'error');
+            }
+        }
+
+        function clearVideo(orientation) {
+            state[orientation] = null;
+            if (orientation === 'portrait') {
+                els.portraitPreview.removeAttribute('src');
+            } else {
+                els.landscapePreview.removeAttribute('src');
+            }
+            syncUI();
+        }
+
+        function resetAll() {
+            state.portrait = null;
+            state.landscape = null;
+            state.previewMode = 'portrait';
+            state.settings = {
+                playableName: 'IEC Video Playable',
+                backgroundColor: '#000000',
+                iosLink: '',
+                androidLink: '',
+                loopVideo: true,
+                fitCover: false,
+                clickAnywhere: true
+            };
+            els.portraitPreview.removeAttribute('src');
+            els.landscapePreview.removeAttribute('src');
+            els.playableName.value = state.settings.playableName;
+            els.backgroundColor.value = state.settings.backgroundColor;
+            els.backgroundText.value = state.settings.backgroundColor;
+            els.iosLink.value = '';
+            els.androidLink.value = '';
+            els.loopVideo.checked = true;
+            els.fitCover.checked = false;
+            els.clickAnywhere.checked = true;
+            document.querySelectorAll('.net-cb').forEach(input => input.checked = true);
+            syncUI();
+            setStatus('Đã reset.', 'ok');
+        }
+
+        function setPreviewMode(mode) {
+            state.previewMode = mode;
+            syncUI();
+            setTimeout(playActivePreview, 0);
+        }
+
+        function playActivePreview() {
+            const video = state.previewMode === 'portrait' ? els.portraitPreview : els.landscapePreview;
+            const other = state.previewMode === 'portrait' ? els.landscapePreview : els.portraitPreview;
+            other.pause();
+            if (!video.src) return;
+            video.muted = true;
+            video.play().catch(() => {
+                setStatus('Bấm Play để chạy preview.', 'warn');
+            });
+        }
+
+        function syncUI() {
+            const hasPortrait = Boolean(state.portrait);
+            const hasLandscape = Boolean(state.landscape);
+            const hasBoth = hasPortrait && hasLandscape;
+            const activeVideo = state[state.previewMode];
+
+            els.portraitDrop.classList.toggle('is-ready', hasPortrait);
+            els.landscapeDrop.classList.toggle('is-ready', hasLandscape);
+            els.clearPortraitBtn.disabled = !hasPortrait;
+            els.clearLandscapeBtn.disabled = !hasLandscape;
+            els.downloadBtn.disabled = !hasBoth;
+            els.downloadTopBtn.disabled = !hasBoth;
+            els.previewExportBtn.disabled = !hasBoth;
+            els.playPreviewBtn.disabled = !activeVideo;
+
+            els.portraitInfo.innerHTML = fileInfoHtml(state.portrait, 'Portrait');
+            els.landscapeInfo.innerHTML = fileInfoHtml(state.landscape, 'Landscape');
+
+            els.activeTitle.textContent = state.settings.playableName || 'IEC Video Playable';
+            els.previewName.textContent = state.settings.playableName || 'IEC Preview';
+            els.previewCanvas.style.setProperty('--preview-bg', state.settings.backgroundColor);
+            els.device.classList.toggle('landscape', state.previewMode === 'landscape');
+            els.portraitModeBtn.classList.toggle('is-active', state.previewMode === 'portrait');
+            els.landscapeModeBtn.classList.toggle('is-active', state.previewMode === 'landscape');
+            els.orientationBadge.textContent = state.previewMode === 'portrait' ? 'Portrait' : 'Landscape';
+
+            syncVideoEl(els.portraitPreview, state.portrait, state.previewMode === 'portrait');
+            syncVideoEl(els.landscapePreview, state.landscape, state.previewMode === 'landscape');
+
+            els.emptyPreview.style.display = activeVideo ? 'none' : 'flex';
+
+            const rawSize = (state.portrait?.size || 0) + (state.landscape?.size || 0);
+            const base64Size = (state.portrait?.dataUrl.length || 0) + (state.landscape?.dataUrl.length || 0);
+            els.rawSize.textContent = formatBytes(rawSize);
+            els.base64Size.textContent = formatBytes(base64Size);
+        }
+
+        function syncVideoEl(video, data, active) {
+            if (data && video.src !== data.dataUrl) {
+                video.src = data.dataUrl;
+                video.load();
+            }
+            video.loop = state.settings.loopVideo;
+            video.style.objectFit = state.settings.fitCover ? 'cover' : 'contain';
+            video.classList.toggle('is-active', active && Boolean(data));
+            if (!active) video.pause();
+        }
+
+        function fileInfoHtml(file, fallback) {
+            if (!file) {
+                return `<div class="file-name">Chưa nạp file</div><div>${fallback}</div>`;
+            }
+            return `<div class="file-name">${escapeHtml(file.name)}</div><div>${escapeHtml(file.type)} | ${formatBytes(file.size)}</div>`;
+        }
+
+        function selectedNetworks() {
+            return Array.from(document.querySelectorAll('.net-cb:checked')).map(input => input.value);
+        }
+
+        async function exportSelected() {
+            const validation = validateExport();
+            if (!validation.ok) {
+                setStatus(validation.message, 'error');
+                return;
+            }
+
+            const networks = selectedNetworks();
+            const baseName = safeFileName(state.settings.playableName || 'IEC_Video_Playable');
+
+            try {
+                setStatus('Đang tạo file...');
+
+                if (networks.length === 1) {
+                    const html = buildPlayableHtml(networks[0]);
+                    downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), `${networks[0]}_${baseName}.html`);
+                    setStatus('Đã tạo HTML.', 'ok');
+                    return;
+                }
+
+                const files = networks.map(network => ({
+                    name: `${network}_${baseName}.html`,
+                    content: buildPlayableHtml(network)
+                }));
+                const zipBlob = createZip(files);
+                downloadBlob(zipBlob, `IEC_Playable_${baseName}_${timestamp()}.zip`);
+                setStatus('Đã tạo ZIP.', 'ok');
+            } catch (error) {
+                console.error(error);
+                setStatus(`Có lỗi khi export: ${error.message}`, 'error');
+            }
+        }
+
+        function openExportPreview() {
+            const validation = validateExport();
+            if (!validation.ok) {
+                setStatus(validation.message, 'error');
+                return;
+            }
+
+            const html = buildPlayableHtml('Unity');
+            if (state.exportPreviewUrl) URL.revokeObjectURL(state.exportPreviewUrl);
+            state.exportPreviewUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+            window.open(state.exportPreviewUrl, '_blank');
+        }
+
+        function validateExport() {
+            if (!state.portrait || !state.landscape) {
+                return { ok: false, message: 'Cần nạp đủ video dọc và video ngang.' };
+            }
+            if (!selectedNetworks().length) {
+                return { ok: false, message: 'Vui lòng chọn ít nhất một ad network.' };
+            }
+            const urlNetworks = selectedNetworks().filter(networkNeedsStoreUrl);
+            if (urlNetworks.length && !state.settings.iosLink && !state.settings.androidLink) {
+                return { ok: false, message: `Cần nhập iOS hoặc Android Game Link cho ${urlNetworks.join(', ')} để gọi mraid.open(url).` };
+            }
+            return { ok: true, message: '' };
+        }
+
+        function buildPlayableHtml(networkId) {
+            const network = NETWORKS.find(item => item.id === networkId) || NETWORKS[0];
+            const name = state.settings.playableName || 'IEC Video Playable';
+            const backgroundColor = normalizeHex(state.settings.backgroundColor);
+            const objectFit = state.settings.fitCover ? 'cover' : 'contain';
+            const loopAttr = state.settings.loopVideo ? ' loop' : '';
+            const clickLayer = state.settings.clickAnywhere ? '<button id="ctaLayer" aria-label="Install"></button>' : '';
+            const mraidHead = networkNeedsMraidScript(network.id) ? '<script src="mraid.js"><\/script>' : '';
+            const googleHead = network.id === 'Google'
+                ? '<meta name="ad.orientation" content="portrait,landscape"><meta name="ad.size" content="width=320,height=480"><script src="https://tpc.googlesyndication.com/pagead/gadgets/html5/api/exitapi.js"><\/script>'
+                : '';
+
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+${mraidHead}
+${googleHead}
+<title>${escapeHtml(name)}</title>
+<style>
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:${backgroundColor};touch-action:manipulation;-webkit-user-select:none;user-select:none;font-family:Arial,sans-serif}
+#app{position:fixed;inset:0;overflow:hidden;background:${backgroundColor}}
+.video{position:absolute;inset:0;width:100%;height:100%;object-fit:${objectFit};background:${backgroundColor};display:none}
+.video.is-active{display:block}
+#ctaLayer{position:absolute;inset:0;width:100%;height:100%;padding:0;margin:0;border:0;background:transparent;cursor:pointer;z-index:5}
+</style>
+</head>
+<body>
+<div id="app">
+<video id="portraitVideo" class="video" src="${state.portrait.dataUrl}" muted playsinline webkit-playsinline preload="auto"${loopAttr}></video>
+<video id="landscapeVideo" class="video" src="${state.landscape.dataUrl}" muted playsinline webkit-playsinline preload="auto"${loopAttr}></video>
+${clickLayer}
+</div>
+<script>
+(function(){
+var packageConfig={applicationName:${JSON.stringify(name)},iosLink:${JSON.stringify(state.settings.iosLink)},androidLink:${JSON.stringify(state.settings.androidLink)},orientation:"unspecified",languages:["en","en"],targetPlatform:${JSON.stringify(network.platform)}};
+window.$environment=window.$environment||{};
+window.$environment.packageConfig=Object.assign(packageConfig,window.$environment.packageConfig||{});
+var portrait=document.getElementById("portraitVideo");
+var landscape=document.getElementById("landscapeVideo");
+var activeVideo=null;
+var started=false;
+var gameReadySent=false;
+var gameEndSent=false;
+function fire(name){window.dispatchEvent(new Event(name))}
+function isIOS(){return /iphone|ipad|ipod|macintosh/i.test(navigator.userAgent)}
+function storeUrl(){return isIOS()?packageConfig.iosLink||packageConfig.androidLink:packageConfig.androidLink||packageConfig.iosLink}
+function safePlay(video){if(!video)return;video.muted=true;var result=video.play();if(result&&result.catch)result.catch(function(){})}
+function tryMraidOpen(url){if(window.mraid&&typeof window.mraid.open==="function"&&url){window.mraid.open(url);return true}return false}
+function tryExitApi(){if(window.ExitApi&&typeof window.ExitApi.exit==="function"){window.ExitApi.exit();return true}return false}
+function tryFbPlayable(){if(window.FbPlayableAd&&typeof window.FbPlayableAd.onCTAClick==="function"){window.FbPlayableAd.onCTAClick();return true}return false}
+function tryParentCtaMessage(){try{if(window.parent&&window.parent!==window){window.parent.postMessage("onCTAClick","*");return true}}catch(error){}return false}
+function tryMintegralInstall(){if(typeof window.install==="function"){window.install();return true}return false}
+function tryTikTokOpenStore(){if(typeof window.openAppStore==="function"){window.openAppStore();return true}if(window.playableSDK&&typeof window.playableSDK.openAppStore==="function"){window.playableSDK.openAppStore();return true}return false}
+function tryWindowOpen(url){if(url){window.open(url,"_blank");return true}return false}
+function reportMissingClickApi(url){console.warn("No supported click API was available for "+packageConfig.targetPlatform+".",url?"":"Missing store URL.")}
+function signalGameReady(){if(gameReadySent)return;gameReadySent=true;if(window.gameReady)window.gameReady()}
+function signalGameEnd(){if(gameEndSent)return;gameEndSent=true;if(window.gameEnd)window.gameEnd();fire("luna:ended")}
+var videoReady={portrait:false,landscape:false};
+function markVideoReady(key){videoReady[key]=true;if(videoReady.portrait&&videoReady.landscape)signalGameReady()}
+function chooseVideo(){return window.innerWidth>window.innerHeight?landscape:portrait}
+function applyOrientation(){
+  var next=chooseVideo();
+  if(activeVideo&&activeVideo!==next){activeVideo.pause();activeVideo.classList.remove("is-active")}
+  activeVideo=next;
+  activeVideo.classList.add("is-active");
+  safePlay(activeVideo);
+}
+function onVisible(){
+  if(document.hidden){if(activeVideo)activeVideo.pause();fire("luna:pause")}
+  else{safePlay(activeVideo);fire(started?"luna:resume":"luna:start");started=true}
+}
+window.addEventListener("resize",applyOrientation);
+window.addEventListener("orientationchange",function(){setTimeout(applyOrientation,80)});
+document.addEventListener("visibilitychange",onVisible);
+portrait.addEventListener("loadeddata",function(){markVideoReady("portrait")});
+portrait.addEventListener("canplaythrough",function(){markVideoReady("portrait")});
+portrait.addEventListener("ended",signalGameEnd);
+landscape.addEventListener("loadeddata",function(){markVideoReady("landscape")});
+landscape.addEventListener("canplaythrough",function(){markVideoReady("landscape")});
+landscape.addEventListener("ended",signalGameEnd);
+window.addEventListener("load",function(){applyOrientation();fire("luna:build");fire("luna:start");fire("luna:started");started=true;setTimeout(signalGameReady,250)});
+window.openStore=function(){
+  var url=storeUrl();
+  ${networkOpenSnippet(network.id)}
+};
+window.Luna=window.Luna||{};
+window.Luna.Unity=window.Luna.Unity||{};
+window.Luna.Unity.Playable=window.Luna.Unity.Playable||{};
+window.Luna.Unity.Playable.InstallFullGame=function(){window.openStore()};
+var cta=document.getElementById("ctaLayer");
+var clickLocked=false;
+function handleCtaTap(event){
+  if(clickLocked)return;
+  clickLocked=true;
+  setTimeout(function(){clickLocked=false},350);
+  if(event){if(event.cancelable)event.preventDefault();event.stopPropagation()}
+  window.openStore();
+}
+if(${JSON.stringify(state.settings.clickAnywhere)}){
+  document.addEventListener("pointerup",handleCtaTap,true);
+  document.addEventListener("click",handleCtaTap,true);
+  document.addEventListener("touchend",handleCtaTap,{capture:true,passive:false});
+}
+if(cta){cta.addEventListener("click",handleCtaTap);cta.addEventListener("touchend",handleCtaTap,{passive:false})}
+})();
+<\/script>
+${networkLifecycleScript(network.id)}
+</body>
+</html>`;
+        }
+
+        function networkOpenSnippet(id) {
+            if (id === 'Google') {
+                return 'if(tryExitApi())return;if(tryWindowOpen(url))return;reportMissingClickApi(url);';
+            }
+            if (id === 'Facebook' || id === 'Moloco') {
+                return 'if(tryFbPlayable())return;if(tryParentCtaMessage())return;if(tryWindowOpen(url))return;reportMissingClickApi(url);';
+            }
+            if (id === 'Mintegral') {
+                return 'if(tryMintegralInstall()){signalGameEnd();return;}reportMissingClickApi(url);';
+            }
+            if (id === 'Tiktok') {
+                return 'if(tryTikTokOpenStore())return;if(tryMraidOpen(url))return;if(tryWindowOpen(url))return;reportMissingClickApi(url);';
+            }
+            return 'if(tryMraidOpen(url))return;if(tryWindowOpen(url))return;reportMissingClickApi(url);';
+        }
+
+        function networkNeedsMraidScript(id) {
+            return id === 'Unity' || id === 'IronSource' || id === 'Applovin';
+        }
+
+        function networkNeedsStoreUrl(id) {
+            return networkNeedsMraidScript(id);
+        }
+
+        function networkLifecycleScript(id) {
+            if (id === 'Unity' || id === 'IronSource' || id === 'Applovin') {
+                return `<script>
+(function(){
+function viewable(){return !window.mraid||mraid.isViewable&&mraid.isViewable()}
+function start(){window.dispatchEvent(new Event(viewable()?"luna:resume":"luna:pause"))}
+function ready(){if(window.mraid){mraid.addEventListener("viewableChange",start);mraid.addEventListener("stateChange",start)}start()}
+window.addEventListener("luna:build",function(){if(window.mraid&&mraid.getState&&mraid.getState()==="loading")mraid.addEventListener("ready",ready);else ready()});
+})();
+<\/script>`;
+            }
+            if (id === 'Mintegral') {
+                return `<script>
+window.gameClose=function(){window.dispatchEvent(new Event("luna:pause"))};
+window.gameStart=function(){window.dispatchEvent(new Event("luna:resume"))};
+<\/script>`;
+            }
+            return '';
+        }
+
+        function readAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = event => resolve(event.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function createZip(files) {
+            const encoder = new TextEncoder();
+            const chunks = [];
+            const central = [];
+            let offset = 0;
+            const now = new Date();
+            const dosTime = ((now.getHours() & 31) << 11) | ((now.getMinutes() & 63) << 5) | ((now.getSeconds() / 2) & 31);
+            const dosDate = (((now.getFullYear() - 1980) & 127) << 9) | (((now.getMonth() + 1) & 15) << 5) | (now.getDate() & 31);
+
+            files.forEach(file => {
+                const nameBytes = encoder.encode(file.name);
+                const data = encoder.encode(file.content);
+                const crc = crc32(data);
+                const local = [];
+                writeU32(local, 0x04034b50);
+                writeU16(local, 20);
+                writeU16(local, 0x0800);
+                writeU16(local, 0);
+                writeU16(local, dosTime);
+                writeU16(local, dosDate);
+                writeU32(local, crc);
+                writeU32(local, data.length);
+                writeU32(local, data.length);
+                writeU16(local, nameBytes.length);
+                writeU16(local, 0);
+                chunks.push(new Uint8Array(local), nameBytes, data);
+
+                const centralPart = [];
+                writeU32(centralPart, 0x02014b50);
+                writeU16(centralPart, 20);
+                writeU16(centralPart, 20);
+                writeU16(centralPart, 0x0800);
+                writeU16(centralPart, 0);
+                writeU16(centralPart, dosTime);
+                writeU16(centralPart, dosDate);
+                writeU32(centralPart, crc);
+                writeU32(centralPart, data.length);
+                writeU32(centralPart, data.length);
+                writeU16(centralPart, nameBytes.length);
+                writeU16(centralPart, 0);
+                writeU16(centralPart, 0);
+                writeU16(centralPart, 0);
+                writeU16(centralPart, 0);
+                writeU32(centralPart, 0);
+                writeU32(centralPart, offset);
+                central.push(new Uint8Array(centralPart), nameBytes);
+
+                offset += local.length + nameBytes.length + data.length;
+            });
+
+            const centralSize = central.reduce((sum, chunk) => sum + chunk.length, 0);
+            const end = [];
+            writeU32(end, 0x06054b50);
+            writeU16(end, 0);
+            writeU16(end, 0);
+            writeU16(end, files.length);
+            writeU16(end, files.length);
+            writeU32(end, centralSize);
+            writeU32(end, offset);
+            writeU16(end, 0);
+
+            return new Blob([...chunks, ...central, new Uint8Array(end)], { type: 'application/zip' });
+        }
+
+        function writeU16(target, value) {
+            target.push(value & 255, (value >>> 8) & 255);
+        }
+
+        function writeU32(target, value) {
+            target.push(value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255);
+        }
+
+        const CRC_TABLE = (() => {
+            const table = new Uint32Array(256);
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+                table[i] = c >>> 0;
+            }
+            return table;
+        })();
+
+        function crc32(data) {
+            let crc = 0xffffffff;
+            for (let i = 0; i < data.length; i++) crc = CRC_TABLE[(crc ^ data[i]) & 255] ^ (crc >>> 8);
+            return (crc ^ 0xffffffff) >>> 0;
+        }
+
+        function inferVideoType(name) {
+            if (/\.webm$/i.test(name)) return 'video/webm';
+            if (/\.mov$/i.test(name)) return 'video/quicktime';
+            return 'video/mp4';
+        }
+
+        function normalizeHex(value) {
+            const raw = String(value || '').trim();
+            if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+            if (/^[0-9a-f]{6}$/i.test(raw)) return `#${raw.toLowerCase()}`;
+            if (/^#[0-9a-f]{3}$/i.test(raw)) {
+                return '#' + raw.slice(1).split('').map(char => char + char).join('').toLowerCase();
+            }
+            return '#000000';
+        }
+
+        function safeFileName(value) {
+            const clean = value.normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-zA-Z0-9_-]+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 60);
+            return clean || 'IEC_Video_Playable';
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes) return '0 KB';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unit = 0;
+            while (size >= 1024 && unit < units.length - 1) {
+                size /= 1024;
+                unit++;
+            }
+            return `${size >= 10 || unit === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unit]}`;
+        }
+
+        function timestamp() {
+            const date = new Date();
+            return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        function setStatus(message, type) {
+            els.status.textContent = message || '';
+            els.status.className = 'status' + (type ? ` ${type}` : '');
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[char]));
+        }
+    </script>
+</body>
+</html>
