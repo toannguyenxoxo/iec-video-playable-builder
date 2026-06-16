@@ -1180,9 +1180,15 @@
             const network = NETWORKS.find(item => item.id === networkId) || NETWORKS[0];
             const name = state.settings.playableName || 'IEC Video Playable';
             const backgroundColor = normalizeHex(state.settings.backgroundColor);
-            const objectFit = state.settings.fitCover ? 'cover' : 'contain';
+            const isUnity = network.id === 'Unity';
+            const objectFit = isUnity || state.settings.fitCover ? 'cover' : 'contain';
             const loopAttr = state.settings.loopVideo ? ' loop' : '';
-            const clickLayer = state.settings.clickAnywhere ? '<button id="ctaLayer" aria-label="Install"></button>' : '';
+            const globalClickEnabled = !isUnity && state.settings.clickAnywhere;
+            const clickLayer = globalClickEnabled ? '<button id="ctaLayer" aria-label="Install"></button>' : '';
+            const unityCta = isUnity ? '<button id="unityCta" aria-label="Install">Play Now</button>' : '';
+            const globalClickScript = globalClickEnabled
+                ? 'document.addEventListener("pointerup",handleCtaTap,true);document.addEventListener("click",handleCtaTap,true);document.addEventListener("touchend",handleCtaTap,{capture:true,passive:false});'
+                : '';
             const mraidHead = networkNeedsMraidScript(network.id) ? '<script src="mraid.js"><\/script>' : '';
             const googleHead = network.id === 'Google'
                 ? '<meta name="ad.orientation" content="portrait,landscape"><meta name="ad.size" content="width=320,height=480"><script src="https://tpc.googlesyndication.com/pagead/gadgets/html5/api/exitapi.js"><\/script>'
@@ -1198,11 +1204,12 @@ ${mraidHead}
 ${googleHead}
 <title>${escapeHtml(name)}</title>
 <style>
-html,body{width:100%;height:100%;margin:0;overflow:hidden;background:${backgroundColor};touch-action:manipulation;-webkit-user-select:none;user-select:none;font-family:Arial,sans-serif}
-#app{position:fixed;inset:0;overflow:hidden;background:${backgroundColor}}
+html,body{width:100%;height:100%;min-width:100vw;min-height:100vh;margin:0;overflow:hidden;background:${backgroundColor};touch-action:manipulation;-webkit-user-select:none;user-select:none;font-family:Arial,sans-serif}
+#app{position:fixed;left:0;top:0;width:100vw;height:100vh;min-width:100%;min-height:100%;overflow:hidden;background:${backgroundColor}}
 .video{position:absolute;inset:0;width:100%;height:100%;object-fit:${objectFit};background:${backgroundColor};display:none}
 .video.is-active{display:block}
 #ctaLayer{position:absolute;inset:0;width:100%;height:100%;padding:0;margin:0;border:0;background:transparent;cursor:pointer;z-index:5}
+#unityCta{position:absolute;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));min-width:148px;height:48px;display:flex;align-items:center;justify-content:center;transform:translateX(-50%);border:0;border-radius:24px;background:#ffffff;color:#111827;font:800 17px Arial,sans-serif;letter-spacing:0;text-transform:none;box-shadow:0 8px 24px rgba(0,0,0,.26);cursor:pointer;z-index:6}
 </style>
 </head>
 <body>
@@ -1210,6 +1217,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:${backgroun
 <video id="portraitVideo" class="video" src="${state.portrait.dataUrl}" muted playsinline webkit-playsinline preload="auto"${loopAttr}></video>
 <video id="landscapeVideo" class="video" src="${state.landscape.dataUrl}" muted playsinline webkit-playsinline preload="auto"${loopAttr}></video>
 ${clickLayer}
+${unityCta}
 </div>
 <script>
 (function(){
@@ -1277,12 +1285,10 @@ function handleCtaTap(event){
   if(event){if(event.cancelable)event.preventDefault();event.stopPropagation()}
   window.openStore();
 }
-if(${JSON.stringify(state.settings.clickAnywhere)}){
-  document.addEventListener("pointerup",handleCtaTap,true);
-  document.addEventListener("click",handleCtaTap,true);
-  document.addEventListener("touchend",handleCtaTap,{capture:true,passive:false});
-}
+${globalClickScript}
 if(cta){cta.addEventListener("click",handleCtaTap);cta.addEventListener("touchend",handleCtaTap,{passive:false})}
+var unityCta=document.getElementById("unityCta");
+if(unityCta){unityCta.addEventListener("click",handleCtaTap);unityCta.addEventListener("touchend",handleCtaTap,{passive:false})}
 })();
 <\/script>
 ${networkLifecycleScript(network.id)}
