@@ -445,9 +445,15 @@
         }
 
         .preview-video {
+            position: absolute;
+            left: 50%;
+            top: 50%;
             width: 100%;
-            height: 100%;
-            object-fit: cover;
+            height: auto;
+            max-width: none;
+            max-height: none;
+            object-fit: fill;
+            transform: translate(-50%, -50%);
             display: none;
             background: var(--preview-bg, #000000);
         }
@@ -503,7 +509,8 @@
             font-weight: 850;
         }
 
-        input[type="text"] {
+        input[type="text"],
+        select {
             width: 100%;
             height: 44px;
             border: 1px solid var(--line);
@@ -514,9 +521,32 @@
             outline: none;
         }
 
-        input[type="text"]:focus {
+        select {
+            background: #fff;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
             border-color: #b79bfa;
             box-shadow: 0 0 0 3px rgba(155, 99, 243, .12);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--purple);
+        }
+
+        .field-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .field-value {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 850;
         }
 
         .color-field {
@@ -776,10 +806,21 @@
                     <input type="checkbox" id="loopVideo" checked>
                     Loop video
                 </label>
-                <label class="check-row">
-                    <input type="checkbox" id="fitCover">
-                    Fit cover
-                </label>
+                <div class="field">
+                    <label for="scaleMode">Scale mode</label>
+                    <select id="scaleMode">
+                        <option value="smart">Smart Safe</option>
+                        <option value="contain">Contain</option>
+                        <option value="cover">Cover</option>
+                    </select>
+                </div>
+                <div class="field" id="maxCropField">
+                    <label class="field-label-row" for="maxCrop">
+                        <span>Max crop</span>
+                        <span class="field-value" id="maxCropValue">6%</span>
+                    </label>
+                    <input type="range" id="maxCrop" min="0" max="20" step="1" value="6">
+                </div>
                 <label class="check-row">
                     <input type="checkbox" id="clickAnywhere" checked>
                     Click toàn màn hình
@@ -820,7 +861,8 @@
                 iosLink: '',
                 androidLink: '',
                 loopVideo: true,
-                fitCover: false,
+                scaleMode: 'smart',
+                maxCrop: 0.06,
                 clickAnywhere: true
             }
         };
@@ -856,7 +898,10 @@
             iosLink: document.getElementById('iosLink'),
             androidLink: document.getElementById('androidLink'),
             loopVideo: document.getElementById('loopVideo'),
-            fitCover: document.getElementById('fitCover'),
+            scaleMode: document.getElementById('scaleMode'),
+            maxCropField: document.getElementById('maxCropField'),
+            maxCrop: document.getElementById('maxCrop'),
+            maxCropValue: document.getElementById('maxCropValue'),
             clickAnywhere: document.getElementById('clickAnywhere'),
             downloadBtn: document.getElementById('downloadBtn'),
             downloadTopBtn: document.getElementById('downloadTopBtn'),
@@ -893,6 +938,14 @@
             els.portraitModeBtn.addEventListener('click', () => setPreviewMode('portrait'));
             els.landscapeModeBtn.addEventListener('click', () => setPreviewMode('landscape'));
             els.playPreviewBtn.addEventListener('click', playActivePreview);
+            [els.portraitPreview, els.landscapePreview].forEach(video => {
+                video.addEventListener('loadedmetadata', applyPreviewLayout);
+                video.addEventListener('loadeddata', applyPreviewLayout);
+            });
+            if (window.ResizeObserver) {
+                new ResizeObserver(applyPreviewLayout).observe(els.previewCanvas);
+            }
+            window.addEventListener('resize', applyPreviewLayout);
 
             els.playableName.addEventListener('input', () => {
                 state.settings.playableName = els.playableName.value;
@@ -925,8 +978,13 @@
                 syncUI();
             });
 
-            els.fitCover.addEventListener('change', () => {
-                state.settings.fitCover = els.fitCover.checked;
+            els.scaleMode.addEventListener('change', () => {
+                state.settings.scaleMode = normalizeScaleMode(els.scaleMode.value);
+                syncUI();
+            });
+
+            els.maxCrop.addEventListener('input', () => {
+                state.settings.maxCrop = normalizeMaxCrop(Number(els.maxCrop.value) / 100);
                 syncUI();
             });
 
@@ -981,11 +1039,14 @@
 
             try {
                 const dataUrl = await readAsDataUrl(file);
+                const metadata = await readVideoMetadata(dataUrl);
                 state[orientation] = {
                     name: file.name,
                     type: file.type || inferVideoType(file.name),
                     size: file.size,
-                    dataUrl
+                    dataUrl,
+                    width: metadata.width,
+                    height: metadata.height
                 };
                 setPreviewMode(orientation);
                 syncUI();
@@ -1017,7 +1078,8 @@
                 iosLink: '',
                 androidLink: '',
                 loopVideo: true,
-                fitCover: false,
+                scaleMode: 'smart',
+                maxCrop: 0.06,
                 clickAnywhere: true
             };
             els.portraitPreview.removeAttribute('src');
@@ -1028,7 +1090,8 @@
             els.iosLink.value = '';
             els.androidLink.value = '';
             els.loopVideo.checked = true;
-            els.fitCover.checked = false;
+            els.scaleMode.value = state.settings.scaleMode;
+            els.maxCrop.value = Math.round(state.settings.maxCrop * 100);
             els.clickAnywhere.checked = true;
             document.querySelectorAll('.net-cb').forEach(input => input.checked = true);
             syncUI();
@@ -1081,11 +1144,17 @@
             els.portraitModeBtn.classList.toggle('is-active', state.previewMode === 'portrait');
             els.landscapeModeBtn.classList.toggle('is-active', state.previewMode === 'landscape');
             els.orientationBadge.textContent = state.previewMode === 'portrait' ? 'Portrait' : 'Landscape';
+            els.scaleMode.value = normalizeScaleMode(state.settings.scaleMode);
+            els.maxCrop.value = Math.round(normalizeMaxCrop(state.settings.maxCrop) * 100);
+            els.maxCrop.disabled = normalizeScaleMode(state.settings.scaleMode) !== 'smart';
+            els.maxCropField.style.opacity = els.maxCrop.disabled ? '.55' : '1';
+            els.maxCropValue.textContent = `${els.maxCrop.value}%`;
 
             syncVideoEl(els.portraitPreview, state.portrait, state.previewMode === 'portrait');
             syncVideoEl(els.landscapePreview, state.landscape, state.previewMode === 'landscape');
 
             els.emptyPreview.style.display = activeVideo ? 'none' : 'flex';
+            requestAnimationFrame(applyPreviewLayout);
 
             const rawSize = (state.portrait?.size || 0) + (state.landscape?.size || 0);
             const base64Size = (state.portrait?.dataUrl.length || 0) + (state.landscape?.dataUrl.length || 0);
@@ -1099,17 +1168,85 @@
                 video.load();
             }
             video.loop = state.settings.loopVideo;
-            video.style.objectFit = state.settings.fitCover ? 'cover' : 'contain';
             video.style.backgroundColor = state.settings.backgroundColor;
             video.classList.toggle('is-active', active && Boolean(data));
             if (!active) video.pause();
+        }
+
+        function applyPreviewLayout() {
+            const data = state[state.previewMode];
+            const video = state.previewMode === 'portrait' ? els.portraitPreview : els.landscapePreview;
+            if (!data || !video || !els.previewCanvas) return;
+            const rect = els.previewCanvas.getBoundingClientRect();
+            const aspect = getVideoAspect(video, videoAspectFor(state.previewMode));
+            const layout = computeVideoLayout(rect.width, rect.height, aspect, state.settings.scaleMode, state.settings.maxCrop);
+            applyVideoLayout(video, layout);
+        }
+
+        function computeVideoLayout(containerWidth, containerHeight, videoAspect, mode, maxCrop) {
+            const safeContainerWidth = Math.max(1, Number(containerWidth) || 1);
+            const safeContainerHeight = Math.max(1, Number(containerHeight) || 1);
+            const safeAspect = Number(videoAspect) > 0 ? Number(videoAspect) : 9 / 16;
+            const containerAspect = safeContainerWidth / safeContainerHeight;
+            const fitByWidth = containerAspect <= safeAspect;
+            const containWidth = fitByWidth ? safeContainerWidth : safeContainerHeight * safeAspect;
+            const containHeight = fitByWidth ? safeContainerWidth / safeAspect : safeContainerHeight;
+            const coverZoom = Math.max(safeContainerWidth / containWidth, safeContainerHeight / containHeight);
+            let zoom = 1;
+            const normalizedMode = normalizeScaleMode(mode);
+
+            if (normalizedMode === 'cover') {
+                zoom = coverZoom;
+            } else if (normalizedMode === 'smart') {
+                const crop = normalizeMaxCrop(maxCrop);
+                const cropLimit = Math.max(0.01, 1 - crop);
+                const maxWidthZoom = safeContainerWidth / (containWidth * cropLimit);
+                const maxHeightZoom = safeContainerHeight / (containHeight * cropLimit);
+                zoom = Math.max(1, Math.min(coverZoom, maxWidthZoom, maxHeightZoom));
+            }
+
+            return {
+                width: Math.round(containWidth * zoom * 1000) / 1000,
+                height: Math.round(containHeight * zoom * 1000) / 1000
+            };
+        }
+
+        function applyVideoLayout(video, layout) {
+            video.style.width = `${layout.width}px`;
+            video.style.height = `${layout.height}px`;
+        }
+
+        function getVideoAspect(video, fallbackAspect) {
+            if (video && video.videoWidth && video.videoHeight) {
+                return video.videoWidth / video.videoHeight;
+            }
+            return fallbackAspect;
+        }
+
+        function videoAspectFor(orientation) {
+            const data = state[orientation];
+            if (data && data.width && data.height) {
+                return data.width / data.height;
+            }
+            return orientation === 'landscape' ? 16 / 9 : 9 / 16;
+        }
+
+        function normalizeScaleMode(mode) {
+            return mode === 'contain' || mode === 'cover' ? mode : 'smart';
+        }
+
+        function normalizeMaxCrop(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) return 0.06;
+            return Math.min(0.2, Math.max(0, number));
         }
 
         function fileInfoHtml(file, fallback) {
             if (!file) {
                 return `<div class="file-name">Chưa nạp file</div><div>${fallback}</div>`;
             }
-            return `<div class="file-name">${escapeHtml(file.name)}</div><div>${escapeHtml(file.type)} | ${formatBytes(file.size)}</div>`;
+            const dimensions = file.width && file.height ? ` | ${file.width}x${file.height}` : '';
+            return `<div class="file-name">${escapeHtml(file.name)}</div><div>${escapeHtml(file.type)} | ${formatBytes(file.size)}${dimensions}</div>`;
         }
 
         function selectedNetworks() {
@@ -1180,12 +1317,13 @@
             const network = NETWORKS.find(item => item.id === networkId) || NETWORKS[0];
             const name = state.settings.playableName || 'IEC Video Playable';
             const backgroundColor = normalizeHex(state.settings.backgroundColor);
-            const isUnity = network.id === 'Unity';
-            const objectFit = isUnity || state.settings.fitCover ? 'cover' : 'contain';
+            const scaleMode = normalizeScaleMode(state.settings.scaleMode);
+            const maxCrop = normalizeMaxCrop(state.settings.maxCrop);
+            const portraitAspect = videoAspectFor('portrait');
+            const landscapeAspect = videoAspectFor('landscape');
             const loopAttr = state.settings.loopVideo ? ' loop' : '';
-            const globalClickEnabled = !isUnity && state.settings.clickAnywhere;
+            const globalClickEnabled = state.settings.clickAnywhere;
             const clickLayer = globalClickEnabled ? '<button id="ctaLayer" aria-label="Install"></button>' : '';
-            const unityCta = isUnity ? '<button id="unityCta" aria-label="Install">Play Now</button>' : '';
             const globalClickScript = globalClickEnabled
                 ? 'document.addEventListener("pointerup",handleCtaTap,true);document.addEventListener("click",handleCtaTap,true);document.addEventListener("touchend",handleCtaTap,{capture:true,passive:false});'
                 : '';
@@ -1206,10 +1344,9 @@ ${googleHead}
 <style>
 html,body{width:100%;height:100%;min-width:100vw;min-height:100vh;margin:0;overflow:hidden;background:${backgroundColor};touch-action:manipulation;-webkit-user-select:none;user-select:none;font-family:Arial,sans-serif}
 #app{position:fixed;left:0;top:0;width:100vw;height:100vh;min-width:100%;min-height:100%;overflow:hidden;background:${backgroundColor}}
-.video{position:absolute;inset:0;width:100%;height:100%;object-fit:${objectFit};background:${backgroundColor};display:none}
+.video{position:absolute;left:50%;top:50%;width:100%;height:auto;max-width:none;max-height:none;object-fit:fill;transform:translate(-50%,-50%);background:${backgroundColor};display:none}
 .video.is-active{display:block}
 #ctaLayer{position:absolute;inset:0;width:100%;height:100%;padding:0;margin:0;border:0;background:transparent;cursor:pointer;z-index:5}
-#unityCta{position:absolute;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));min-width:148px;height:48px;display:flex;align-items:center;justify-content:center;transform:translateX(-50%);border:0;border-radius:24px;background:#ffffff;color:#111827;font:800 17px Arial,sans-serif;letter-spacing:0;text-transform:none;box-shadow:0 8px 24px rgba(0,0,0,.26);cursor:pointer;z-index:6}
 </style>
 </head>
 <body>
@@ -1217,7 +1354,6 @@ html,body{width:100%;height:100%;min-width:100vw;min-height:100vh;margin:0;overf
 <video id="portraitVideo" class="video" src="${state.portrait.dataUrl}" muted playsinline webkit-playsinline preload="auto"${loopAttr}></video>
 <video id="landscapeVideo" class="video" src="${state.landscape.dataUrl}" muted playsinline webkit-playsinline preload="auto"${loopAttr}></video>
 ${clickLayer}
-${unityCta}
 </div>
 <script>
 (function(){
@@ -1227,6 +1363,7 @@ window.$environment.packageConfig=Object.assign(packageConfig,window.$environmen
 var portrait=document.getElementById("portraitVideo");
 var landscape=document.getElementById("landscapeVideo");
 var activeVideo=null;
+var scaleSettings={mode:${JSON.stringify(scaleMode)},maxCrop:${maxCrop},portraitAspect:${portraitAspect},landscapeAspect:${landscapeAspect}};
 var started=false;
 var gameReadySent=false;
 var gameEndSent=false;
@@ -1247,10 +1384,42 @@ function signalGameEnd(){if(gameEndSent)return;gameEndSent=true;if(window.gameEn
 var videoReady={portrait:false,landscape:false};
 function markVideoReady(key){videoReady[key]=true;if(videoReady.portrait&&videoReady.landscape)signalGameReady()}
 function chooseVideo(){return window.innerWidth>window.innerHeight?landscape:portrait}
+function normalizeScaleMode(mode){return mode==="contain"||mode==="cover"?mode:"smart"}
+function normalizeMaxCrop(value){var number=Number(value);if(!isFinite(number))return .06;return Math.min(.2,Math.max(0,number))}
+function fallbackAspect(video){return video===landscape?scaleSettings.landscapeAspect:scaleSettings.portraitAspect}
+function getVideoAspect(video){return video&&video.videoWidth&&video.videoHeight?video.videoWidth/video.videoHeight:fallbackAspect(video)}
+function computeVideoLayout(containerWidth,containerHeight,videoAspect,mode,maxCrop){
+  var safeWidth=Math.max(1,Number(containerWidth)||1);
+  var safeHeight=Math.max(1,Number(containerHeight)||1);
+  var safeAspect=Number(videoAspect)>0?Number(videoAspect):9/16;
+  var containerAspect=safeWidth/safeHeight;
+  var fitByWidth=containerAspect<=safeAspect;
+  var containWidth=fitByWidth?safeWidth:safeHeight*safeAspect;
+  var containHeight=fitByWidth?safeWidth/safeAspect:safeHeight;
+  var coverZoom=Math.max(safeWidth/containWidth,safeHeight/containHeight);
+  var zoom=1;
+  var normalizedMode=normalizeScaleMode(mode);
+  if(normalizedMode==="cover"){zoom=coverZoom}
+  else if(normalizedMode==="smart"){
+    var crop=normalizeMaxCrop(maxCrop);
+    var cropLimit=Math.max(.01,1-crop);
+    var maxWidthZoom=safeWidth/(containWidth*cropLimit);
+    var maxHeightZoom=safeHeight/(containHeight*cropLimit);
+    zoom=Math.max(1,Math.min(coverZoom,maxWidthZoom,maxHeightZoom));
+  }
+  return {width:Math.round(containWidth*zoom*1000)/1000,height:Math.round(containHeight*zoom*1000)/1000};
+}
+function applyLayout(video){
+  if(!video)return;
+  var layout=computeVideoLayout(window.innerWidth,window.innerHeight,getVideoAspect(video),scaleSettings.mode,scaleSettings.maxCrop);
+  video.style.width=layout.width+"px";
+  video.style.height=layout.height+"px";
+}
 function applyOrientation(){
   var next=chooseVideo();
   if(activeVideo&&activeVideo!==next){activeVideo.pause();activeVideo.classList.remove("is-active")}
   activeVideo=next;
+  applyLayout(activeVideo);
   activeVideo.classList.add("is-active");
   safePlay(activeVideo);
 }
@@ -1262,9 +1431,11 @@ window.addEventListener("resize",applyOrientation);
 window.addEventListener("orientationchange",function(){setTimeout(applyOrientation,80)});
 document.addEventListener("visibilitychange",onVisible);
 portrait.addEventListener("loadeddata",function(){markVideoReady("portrait")});
+portrait.addEventListener("loadedmetadata",function(){applyLayout(portrait)});
 portrait.addEventListener("canplaythrough",function(){markVideoReady("portrait")});
 portrait.addEventListener("ended",signalGameEnd);
 landscape.addEventListener("loadeddata",function(){markVideoReady("landscape")});
+landscape.addEventListener("loadedmetadata",function(){applyLayout(landscape)});
 landscape.addEventListener("canplaythrough",function(){markVideoReady("landscape")});
 landscape.addEventListener("ended",signalGameEnd);
 window.addEventListener("load",function(){applyOrientation();fire("luna:build");fire("luna:start");fire("luna:started");started=true;setTimeout(signalGameReady,250)});
@@ -1287,8 +1458,6 @@ function handleCtaTap(event){
 }
 ${globalClickScript}
 if(cta){cta.addEventListener("click",handleCtaTap);cta.addEventListener("touchend",handleCtaTap,{passive:false})}
-var unityCta=document.getElementById("unityCta");
-if(unityCta){unityCta.addEventListener("click",handleCtaTap);unityCta.addEventListener("touchend",handleCtaTap,{passive:false})}
 })();
 <\/script>
 ${networkLifecycleScript(network.id)}
@@ -1346,6 +1515,30 @@ window.gameStart=function(){window.dispatchEvent(new Event("luna:resume"))};
                 reader.onload = event => resolve(event.target.result);
                 reader.onerror = reject;
                 reader.readAsDataURL(file);
+            });
+        }
+
+        function readVideoMetadata(dataUrl) {
+            return new Promise(resolve => {
+                const video = document.createElement('video');
+                let resolved = false;
+                const finish = () => {
+                    if (resolved) return;
+                    resolved = true;
+                    clearTimeout(timer);
+                    const width = video.videoWidth || 0;
+                    const height = video.videoHeight || 0;
+                    video.removeAttribute('src');
+                    video.load();
+                    resolve({ width, height });
+                };
+                const timer = setTimeout(finish, 2500);
+                video.preload = 'metadata';
+                video.muted = true;
+                video.playsInline = true;
+                video.addEventListener('loadedmetadata', finish, { once: true });
+                video.addEventListener('error', finish, { once: true });
+                video.src = dataUrl;
             });
         }
 
